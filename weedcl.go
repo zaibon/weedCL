@@ -1,4 +1,4 @@
-package weedcl
+package weedCL
 
 import (
 	"bytes"
@@ -28,41 +28,41 @@ func NewClient(cfg *HTTPConfig) *Client {
 //filename is the name of the file
 //contentType is the mime type of the file
 //body is a reader on the file to upload
-func (c *Client) Upload(filename, contentType, body io.Reader) (string, error) {
+func (c *Client) Upload(filename, contentType string, body io.Reader) (string, error) {
 	assignRsp, err := c.assign()
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	mp, contentType, err := createMultiPart(filename, body)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	req, err := http.NewRequest("POST", assignRsp.PublicURL, mp)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	req.Header.Set("Content-type", contentType)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		bResp, err := ioutil.ReadAll(resp.Body)
 		defer resp.Body.Close()
 		if err != nil {
-			return 0, err
+			return "", err
 		}
-		return fmt.Errorf("error during upload (%s) :%s", resp.StatusCode, string(bResp))
+		return "", fmt.Errorf("error during upload (%s) :%s", resp.StatusCode, string(bResp))
 	}
 	return assignRsp.Fid, nil
 }
 
 //Download make a request on weeds and return a io.ReadCloser
 // that contain the file identified by fid or an error if any
-func (c *Client) Download(fid) (io.ReadCloser, error) {
+func (c *Client) Download(fid string) (io.ReadCloser, error) {
 	lookupResp, err := c.lookupFid(fid)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (c *Client) Download(fid) (io.ReadCloser, error) {
 	volURL := ""
 	for _, loc := range lookupResp.Locations {
 		if loc.PublicURL != "" {
-			volURL := loc.PublicURL
+			volURL = loc.PublicURL
 			break
 		}
 	}
@@ -113,7 +113,7 @@ func createMultiPart(filename string, body io.Reader) (io.Reader, string, error)
 
 	_, err = io.Copy(filePart, body)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return buff, mpW.FormDataContentType(), nil
 }
@@ -136,16 +136,16 @@ type lookupResp struct {
 }
 
 //lookupFid does a lookup request on weedfs for fid and return a lookupResp or an error if any
-func (c *Client) lookupFid(fid) (*lookupResp, error) {
+func (c *Client) lookupFid(fid string) (*lookupResp, error) {
 	volID := getVolID(fid)
 	u := fmt.Sprintf("%s/dir/lookup?volumeId=%s", c.Cfg.BaseURL.String(), volID)
-	resp, err := c.client.Get(url)
+	resp, err := c.client.Get(u)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	lookupResp := &lookupResp{}
 	if err := json.NewDecoder(resp.Body).Decode(lookupResp); err != nil {
-		return "", err
+		return nil, err
 	}
 	return lookupResp, nil
 }

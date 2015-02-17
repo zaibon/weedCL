@@ -1,4 +1,4 @@
-package weedcl
+package weedCL
 
 import (
 	"log"
