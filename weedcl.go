@@ -39,7 +39,7 @@ func (c *Client) Upload(filename, contentType string, body io.Reader) (string, e
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", assignRsp.PublicURL, mp)
+	req, err := http.NewRequest("POST", assignRsp.PutURL(), mp)
 	if err != nil {
 		return "", err
 	}
@@ -70,14 +70,14 @@ func (c *Client) Download(fid string) (io.ReadCloser, error) {
 	volURL := ""
 	for _, loc := range lookupResp.Locations {
 		if loc.PublicURL != "" {
-			volURL = loc.PublicURL
+			volURL = loc.GetURL(fid)
 			break
 		}
 	}
 	if volURL == "" {
 		return nil, fmt.Errorf("no volume url found for that fid")
 	}
-	resp, err := c.client.Get(fmt.Sprintf("%s/%s", volURL, fid))
+	resp, err := c.client.Get(volURL)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +91,15 @@ type assignRsp struct {
 	Fid       string `json:"fid"`
 	URL       string `json:"url"`
 	PublicURL string `json:"publicUrl"`
+}
+
+func (a *assignRsp) PutURL() string {
+	// TODO need to handle scheme
+	out := fmt.Sprintf("%s/%s", a.URL, a.Fid)
+	if !strings.HasPrefix(a.URL, "http://") {
+		out = fmt.Sprintf("http://%s", out)
+	}
+	return out
 }
 
 // assign get a new fileID from master
@@ -128,11 +137,22 @@ func getVolID(fid string) string {
 	return volID
 }
 
+type location struct {
+	PublicURL string `json:"publicUrl"`
+	URL       string `json:"url"`
+}
+
+func (l location) GetURL(fid string) string {
+	// TODO need to handle scheme
+	out := fmt.Sprintf("%s/%s", l.URL, fid)
+	if !strings.HasPrefix(l.URL, "http://") {
+		out = fmt.Sprintf("http://%s", out)
+	}
+	return out
+}
+
 type lookupResp struct {
-	Locations []struct {
-		PublicURL string `json:"publicUrl"`
-		URL       string `json:"url"`
-	} `json:"locations"`
+	Locations []location `json:"locations"`
 }
 
 //lookupFid does a lookup request on weedfs for fid and return a lookupResp or an error if any
