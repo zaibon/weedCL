@@ -12,6 +12,9 @@ type HTTPConfig struct {
 }
 
 func NewHTTPCfg(baseURL string) *HTTPConfig {
+	if !strings.HasPrefix(baseURL, "http") {
+		log.Fatalln("baseURL should start with http/https")
+	}
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		log.Fatalln(err)
